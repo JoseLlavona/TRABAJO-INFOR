@@ -1,0 +1,493 @@
+#include "Color.h"
+#include "glut.h"
+
+
+Color::Color(Byte _r, Byte _v, Byte _a)
+{
+	r = _r;
+	g = _v;
+	b = _a;
+}
+void Color::ponColor()
+{
+	glColor3ub(r, g, b);
+}
+Color::~Color()
+{
+
+}
+
+
+#pragma once
+
+typedef unsigned char Byte;
+class Color
+{
+public:
+	Color(Byte _r = 255, Byte _v = 255, Byte _a = 255);
+	void set(Byte _r = 255, Byte _v = 255, Byte _a = 255) {
+		r = _r;
+		g = _v;
+		b = _a;
+	}
+	void ponColor();
+	virtual ~Color();
+	Byte r, g, b;
+
+};
+
+
+
+#include "Esfera.h"
+#include "glut.h"
+
+
+Esfera::Esfera()
+{
+	radio = 1.0f;
+	aceleracion.y = -9.8f;
+	velocidad.x = 0.0f;
+	velocidad.y = 0.0f;
+}
+
+Esfera::~Esfera()
+{
+
+}
+
+void Esfera::dibuja()
+{
+	color.ponColor();
+	glTranslatef(posicion.x, posicion.y, 0);
+	glutSolidSphere(radio, 20, 20);
+	glTranslatef(-posicion.x, -posicion.y, 0);
+}
+
+void Esfera::mueve(float t)
+{
+	posicion = posicion + velocidad * t + aceleracion * (0.5f*t*t);
+	velocidad = velocidad + aceleracion * t;
+}
+void Esfera::setColor(Byte r, Byte v, Byte a)
+{
+	color.set(r, v, a);
+}
+void Esfera::setRadio(float r)
+{
+	if (r < 0.1F)
+		r = 0.1F;
+	radio = r;
+}
+
+void Esfera::setPos(float ix, float iy)
+{
+	posicion.x = ix;
+	posicion.y = iy;
+}
+
+void Esfera::setVel(float vx, float vy)
+{
+	velocidad.x = vx;
+	velocidad.y = vy;
+}
+#pragma once
+
+
+#include "Vector2D.h"
+#include "Color.h"
+
+class Esfera
+{
+	friend class Interaccion;
+public:
+	Esfera();
+	virtual ~Esfera();
+
+	void mueve(float t);
+	void dibuja();
+
+	void setColor(Byte r, Byte v, Byte a);
+	void setRadio(float r);
+	void setPos(float ix, float iy);
+	void setVel(float vx, float vy);
+
+	
+
+private:
+	Color color;
+	float radio;
+
+	Vector2D posicion;
+	Vector2D velocidad;
+	Vector2D aceleracion;
+};
+
+
+#include "Mundo.h"
+#include "glut.h"
+
+Mundo mundo;
+
+//los callback, funciones que seran llamadas automaticamente por la glut
+//cuando sucedan eventos
+//NO HACE FALTA LLAMARLAS EXPLICITAMENTE
+void onDraw(void); //esta funcion sera llamada para dibujar
+void onTimer(int value); //esta funcion sera llamada cuando transcurra una temporizacion
+void onKeyboardDown(unsigned char key, int x, int y); //cuando se pulse una tecla	
+void onSpecialKeyboardDown(int key, int x, int y); //cuando se pulse una tecla especial	
+
+int main(int argc,char* argv[])
+{
+	//Inicializar el gestor de ventanas GLUT
+	//y crear la ventana
+	glutInit(&argc, argv);
+	glutInitWindowSize(400,1000);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+	glutCreateWindow("HelixJump");
+
+	//habilitar luces y definir perspectiva
+	glEnable(GL_LIGHT0);
+	glEnable(GL_LIGHTING);
+	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_COLOR_MATERIAL);	
+	glMatrixMode(GL_PROJECTION);
+	gluPerspective( 40.0, 400/1000.0f, 0.1, 150);
+
+	//Registrar los callbacks
+	glutDisplayFunc(onDraw);
+	glutTimerFunc(25,onTimer,0);//le decimos que dentro de 25ms llame 1 vez a la funcion OnTimer()
+	glutKeyboardFunc(onKeyboardDown);
+	glutSpecialFunc(onSpecialKeyboardDown);
+
+	mundo.inicializa();
+		
+	//pasarle el control a GLUT,que llamara a los callbacks
+	glutMainLoop();	
+
+	return 0;   
+}
+
+void onDraw(void)
+{
+	//Borrado de la pantalla	
+   	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//Para definir el punto de vista
+	glMatrixMode(GL_MODELVIEW);	
+	glLoadIdentity();
+	
+	mundo.dibuja();
+
+	//no borrar esta linea ni poner nada despues
+	glutSwapBuffers();
+}
+void onKeyboardDown(unsigned char key, int x_t, int y_t)
+{
+	//poner aqui el c�digo de teclado
+	mundo.tecla(key);
+
+	glutPostRedisplay();
+}
+void onSpecialKeyboardDown(int key, int x, int y)
+{
+	mundo.teclaEspecial(key);
+}
+void onTimer(int value)
+{
+//poner aqui el c�digo de animacion
+
+	mundo.mueve();
+
+	//no borrar estas lineas
+	glutTimerFunc(25,onTimer,0);
+	glutPostRedisplay();
+}
+
+#include "Interaccion.h"
+
+
+
+Interaccion::Interaccion()
+{
+}
+
+
+Interaccion::~Interaccion()
+{
+}
+
+bool Interaccion::Rebote(Esfera &e, Plataforma p){
+	if (e.posicion.y <= (p.limite1.y+e.radio)&&e.posicion.y>p.limite1.y&&e.posicion.x > (p.limite1.x-e.radio)&&e.posicion.x < (p.limite2.x+e.radio)) {
+		
+		e.velocidad.y= 5.0f;
+		return true;
+	}
+	return false;
+}
+
+#pragma once
+#include "Esfera.h"
+#include "Plataforma.h"
+class Interaccion
+{
+public:
+	Interaccion();
+	~Interaccion();
+	static bool Rebote(Esfera &e, Plataforma p);
+};
+
+
+#include "Mundo.h"
+#include "glut.h"
+#include <math.h>
+
+
+void Mundo::rotarOjo()
+{
+	float dist=sqrt(x_ojo*x_ojo+z_ojo*z_ojo);
+	float ang=atan2(z_ojo,x_ojo);
+	ang+=0.05f;
+	x_ojo=dist*cos(ang);
+	z_ojo=dist*sin(ang);
+}
+void Mundo::dibuja()
+{
+	gluLookAt(x_ojo, y_ojo, z_ojo,  // posicion del ojo
+			0.0, y_ojo, 0.0,      // hacia que punto mira  (0,0,0) 
+			0.0, 1.0, 0.0);      // definimos hacia arriba (eje Y)    
+
+	//aqui es donde hay que poner el codigo de dibujo
+
+	esfera.dibuja();
+
+	plataforma.dibuja();
+}
+
+void Mundo::mueve()
+{
+	esfera.mueve(0.025f);
+	Interaccion::Rebote(esfera, plataforma);
+
+	
+}
+
+void Mundo::inicializa()
+{
+	x_ojo = 0;
+	y_ojo = 0;
+	z_ojo = 50;
+	//Inicializar esfera:
+	esfera.setPos(0.0f, 0.0f);
+	esfera.setColor(255, 0, 0);
+	esfera.setRadio(1.0f);
+	esfera.setVel(0.0f, 0.0f);
+
+
+}
+
+void Mundo::tecla(unsigned char key)
+{
+	plataforma.mueve(key);
+}
+void Mundo::teclaEspecial(unsigned char key)
+{
+
+}
+#include "Esfera.h"
+#include "Plataforma.h"
+#include "Interaccion.h"
+class Mundo
+{
+	Esfera esfera;
+	Plataforma plataforma;
+	float x_ojo;
+	float y_ojo;
+	float z_ojo;
+public: 
+	void tecla(unsigned char key);
+	void teclaEspecial(unsigned char key);
+	void inicializa();
+	void rotarOjo();
+	void mueve();
+	void dibuja();
+};
+
+#include "Plataforma.h"
+#include "glut.h"
+
+
+Plataforma::Plataforma()
+{
+	limite1.x = -5.0f;
+	limite1.y = -5.0f;
+
+	limite2.x = 5.0f;
+	limite2.y = -5.0f;
+
+	color.b = 255;
+	color.r = 255;
+	color.g = 255;
+
+	velocidad.x = 0;
+	velocidad.y = 0;
+}
+
+
+Plataforma::~Plataforma()
+{
+}
+
+
+void Plataforma::dibuja() {
+	glDisable(GL_LIGHTING);
+	glColor3ub(color.r, color.g, color.b);
+	glBegin(GL_POLYGON);
+	glVertex3d(limite1.x, limite1.y, 5);
+	glVertex3d(limite2.x, limite2.y, 5);
+	glVertex3d(limite2.x, limite2.y, -5);
+	glVertex3d(limite1.x, limite1.y, -5);
+	glEnd();
+	glEnable(GL_LIGHTING);
+}
+void Plataforma::setVel(float vx, float vy){
+	velocidad.x = vx;
+	velocidad.y = vy;
+
+}
+void Plataforma::mueve(unsigned char key) {
+	switch (key){
+		case 'd':
+			velocidad.x = 0;
+			velocidad.x+=0.5;
+			break;
+		case 'a':
+			velocidad.x = 0;
+			velocidad.x-=0.5;
+			break;
+	}
+	limite1.x += velocidad.x;
+	limite2.x += velocidad.x;
+
+}
+#pragma once
+#include "Vector2D.h"
+#include "Color.h"
+class Plataforma
+{
+	friend class Interaccion;
+
+	Vector2D limite1;
+	Vector2D limite2;
+	Color color;
+	Vector2D velocidad;
+	Vector2D aceleracion;
+public:
+	Plataforma();
+	~Plataforma();
+
+	//M�todos:
+
+	void dibuja();
+	void mueve(unsigned char key);
+	void setVel(float vx, float vy);
+};
+
+
+#include "Vector2D.h"
+#include <math.h>
+
+//Constructor
+
+Vector2D::Vector2D(float xv, float yv) {
+	x = xv;
+	y = yv;
+}
+
+//Modulo
+
+float Vector2D::modulo() {
+	return (float)sqrt(x*x + y * y);
+}
+
+//Argumento
+
+float Vector2D::argumento() {
+	float PI = 3.14;
+	//Cuando x=0
+	if (x = 0) {
+		if (y > 0) return PI / 2;
+		if (y < 0) return -PI / 2;
+	}
+
+	else if (x < 0) {
+		return (float)atan2(y, x) + PI;
+	}
+	else return (float)atan2(y, x);
+}
+
+//Vector unirario del vector
+
+Vector2D Vector2D::Unitario() {
+	Vector2D retorno(x, y);
+	float mod = modulo();
+	if (mod > 0.00001) {
+		retorno.x /= mod;
+		retorno.y /= mod;
+	}
+	return retorno;
+}
+
+
+//Operaci�n Suma
+
+Vector2D Vector2D::operator + (Vector2D &v) {
+	Vector2D resultado;
+	resultado.x = x + v.x;
+	resultado.y = y + v.y;
+	return resultado;
+}
+
+//Operaci�n Resta
+
+Vector2D Vector2D::operator - (Vector2D &v) {
+	Vector2D resultado;
+	resultado.x = x - v.x;
+	resultado.y = y - v.y;
+	return resultado;
+}
+
+//Producto escalar
+
+float Vector2D::operator * (Vector2D &v) {
+	Vector2D resultado;
+	resultado.x = x * v.x;
+	resultado.y = y * v.y;
+	return resultado.x + resultado.y;
+}
+
+
+//Producto POR un escalar
+
+Vector2D Vector2D::operator*(float cte) {
+	Vector2D resultado;
+	resultado.x = x * cte;
+	resultado.y = y * cte;
+	return resultado;
+}
+#pragma once
+class Vector2D
+{
+public: //atributos
+	float x;
+	float y;
+
+public: //Metodos
+	Vector2D(float xv = 0.0f, float yv = 0.0f);
+	float modulo();
+	float argumento();
+	Vector2D Unitario();
+	Vector2D operator - (Vector2D &);
+	Vector2D operator +(Vector2D &);
+	float operator * (Vector2D &);
+	Vector2D operator * (float);
+};
